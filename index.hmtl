@@ -1,0 +1,385 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Chibi Character Generator (Protected)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#14081f;--panel:#1c0f2a;--ink:#f4eaff;--muted:#c9a7f5;--accent:#a78bfa}
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#10061a,#14081f 60%);font-family:Inter,system-ui,Segoe UI,Roboto;color:var(--ink)}
+  .wrap{max-width:1100px;margin:32px auto;padding:0 16px}
+  .card{background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:16px;margin-bottom:16px}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+  .col-12{grid-column:span 12}.col-6{grid-column:span 6}.col-4{grid-column:span 4}.col-3{grid-column:span 3}
+  @media (max-width:900px){.col-6,.col-4,.col-3{grid-column:span 12}}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px;flex-wrap:wrap}
+  h1{font-size:28px;margin:0} small.muted{color:var(--muted)}
+  label{display:block;font-size:12px;color:var(--muted);margin:4px 0 6px}
+  input[type="text"],input[type="password"],select{width:100%;padding:12px;border-radius:10px;border:1px solid #2b2342;background:#0e0a17;color:var(--ink)}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{appearance:none;border:0;padding:12px 14px;border-radius:10px;font-weight:700;color:#fff;cursor:pointer}
+  .primary{background:#7c3aed}
+  .generate{background:linear-gradient(90deg,#7c3aed,#db2777)}
+  .preset{background:#a78bfa;color:#190d2a}
+  .download{background:#10b981}.ghost{background:transparent;border:1px dashed #453264;color:var(--muted)}
+  .promptBox{background:#0e0a17;border:1px solid #2b2342;border-radius:12px;padding:12px;white-space:pre-wrap;min-height:80px}
+  .pill{padding:8px 10px;border-radius:999px;background:#2a1c3d;color:#d9c6ff;font-size:12px}
+
+  /* Login overlay */
+  #gate{position:fixed;inset:0;display:grid;place-items:center;background:rgba(10,5,18,.9);backdrop-filter:blur(4px);z-index:10}
+  .gate-card{width:min(420px,92vw);background:var(--panel);padding:24px;border-radius:14px;border:1px solid #2b2342;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .gate-card h2{margin:0 0 4px;color:#a78bfa}
+  .row{display:flex;align-items:center;gap:8px}
+  .err{color:#ff7b7b;min-height:18px;margin-top:8px;font-size:13px}
+  .footnote{color:#c9a7f5;font-size:12px}
+</style>
+</head>
+<body>
+
+<!-- ===== Login Gate ===== -->
+<div id="gate">
+  <div class="gate-card">
+    <h2>🔒 Login</h2>
+    <p class="footnote">Enter the credentials to unlock the generator.</p>
+    <label>Username</label>
+    <input id="gUser" type="text" autocomplete="username" placeholder="e.g., admin">
+    <label>Password</label>
+    <input id="gPass" type="password" autocomplete="current-password" placeholder="Your password">
+    <div class="row" style="margin-top:8px">
+      <input id="remember" type="checkbox" style="width:auto"><label for="remember" class="footnote">Remember for 12 hours</label>
+    </div>
+    <button class="btn primary" style="width:100%;margin-top:12px" id="gateBtn">Unlock</button>
+    <div id="gateErr" class="err"></div>
+  </div>
+</div>
+
+<!-- ===== App ===== -->
+<div id="app" style="display:none">
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Chibi Character Generator</h1>
+        <small class="muted">Pick options (leave blanks) → <b>Generate Prompt</b>. Use a preset if you like.</small>
+      </div>
+      <div class="toolbar">
+        <button id="presetMale" class="btn preset">⭐ Zeke Trouble (Male)</button>
+        <button id="presetFemale" class="btn preset">⭐ Honey (Female)</button>
+        <button id="presetStreet" class="btn ghost">Street Samurai</button>
+        <button id="presetIdol" class="btn ghost">Cyber Idol</button>
+        <button id="logout" class="btn ghost" title="Clear session">Logout</button>
+      </div>
+    </header>
+
+    <!-- Free text -->
+    <div class="card">
+      <div class="grid">
+        <div class="col-12">
+          <label>Extra Prompt Text (optional)</label>
+          <input id="extra" type="text" placeholder="e.g., Halloween theme, cyberpunk poster, graffiti vibe" />
+        </div>
+        <div class="col-12">
+          <label>Negative Prompt (optional)</label>
+          <input id="negative" type="text" placeholder="e.g., blurry, watermark, extra fingers, low-res, text, logo" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="card">
+      <div class="grid">
+        <div class="col-6">
+          <label>Character Type</label>
+          <select id="charType">
+            <option>Male Chibi</option>
+            <option>Female Chibi</option>
+            <option>Nonbinary Chibi</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label>Style</label>
+          <input id="style" type="text" value="Chibi" />
+        </div>
+
+        <div class="col-6">
+          <label>Age (optional)</label>
+          <select id="age">
+            <option value="">— optional —</option>
+            <option>child</option><option>teen</option><option>young adult</option>
+            <option>adult</option><option>older adult</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label>Skin tone (optional)</label>
+          <select id="skin">
+            <option value="">— optional —</option>
+            <option>fair</option><option>light</option><option>medium</option>
+            <option>olive</option><option>tan</option><option>brown</option><option>dark</option>
+          </select>
+        </div>
+
+        <div class="col-6">
+          <label>Hair (optional)</label>
+          <select id="hair">
+            <option value="">— optional —</option>
+            <option>twists/locs</option><option>afro puffs</option><option>high fade</option>
+            <option>wavy bob</option><option>long straight with bangs</option>
+            <option>curly shoulder-length</option><option>spiky anime</option>
+            <option>space buns</option><option>ponytail</option><option>undercut</option>
+            <option>braided crown</option><option>short buzz</option>
+          </select>
+        </div>
+
+        <div class="col-6">
+          <label>Outfit (optional)</label>
+          <select id="outfit">
+            <option value="">— optional —</option>
+            <option>tracksuit</option><option>streetwear set (oversized tee + cargos)</option>
+            <option>school uniform</option><option>fantasy armor (light)</option>
+            <option>hoodie + joggers</option><option>cyberpunk jacket + neon pants</option>
+            <option>kimono-inspired outfit</option><option>idol stage costume</option>
+            <option>cozy sweater + skirt</option><option>sports kit</option>
+          </select>
+        </div>
+
+        <div class="col-6">
+          <label>Shoes (optional)</label>
+          <select id="shoes">
+            <option value="">— optional —</option>
+            <option>Jordan 4</option><option>high-top sneakers</option>
+            <option>skate shoes</option><option>combat boots</option>
+            <option>school loafers</option><option>lace-up boots</option>
+            <option>platform sneakers</option><option>running trainers</option>
+          </select>
+        </div>
+
+        <div class="col-6">
+          <label>Pose (optional)</label>
+          <select id="pose">
+            <option value="">— optional —</option>
+            <option>cross-armed, confident</option>
+            <option>peace sign</option>
+            <option>hands on hips</option>
+            <option>jumping, energetic</option>
+            <option>shy, hands together</option>
+          </select>
+        </div>
+
+        <div class="col-6">
+          <label>Background (optional)</label>
+          <select id="bg">
+            <option value="">— optional —</option>
+            <option>studio gradient</option><option>simple pastel backdrop</option>
+            <option>street at dusk</option><option>neon city</option>
+            <option>bedroom gamer setup</option><option>magic forest</option>
+            <option>blank white</option>
+          </select>
+        </div>
+
+        <div class="col-6">
+          <label>Quality / Finish (optional)</label>
+          <select id="quality">
+            <option value="">— optional —</option>
+            <option>flat cell shading, bold lines</option>
+            <option>painterly rendering, soft brush</option>
+            <option>clean lineart, solid fills</option>
+            <option>vector style, crisp edges</option>
+            <option>ultra-detailed, print-ready PNG, 300 DPI</option>
+          </select>
+        </div>
+
+        <div class="col-6">
+          <label>Lighting (optional)</label>
+          <select id="light">
+            <option value="">— optional —</option>
+            <option>soft studio lighting</option>
+            <option>neon rim light</option>
+            <option>warm sunset lighting</option>
+            <option>cool ambient lighting</option>
+            <option>dramatic spotlight</option>
+          </select>
+        </div>
+
+        <div class="col-6">
+          <label>Camera Angle (optional)</label>
+          <select id="camera">
+            <option value="">— optional —</option>
+            <option>centered composition</option>
+            <option>slight low angle hero shot</option>
+            <option>eye-level portrait</option>
+            <option>three-quarter view</option>
+            <option>close-up bust</option>
+          </select>
+        </div>
+
+        <div class="col-6">
+          <label>Color Palette (optional)</label>
+          <select id="palette">
+            <option value="">— optional —</option>
+            <option>vibrant neons (magenta, cyan, purple)</option>
+            <option>pastel candy (lavender, mint, peach)</option>
+            <option>warm sunset (gold, coral, plum)</option>
+            <option>cool tech (teal, indigo, charcoal)</option>
+            <option>monochrome with accent violet</option>
+          </select>
+        </div>
+
+        <div class="col-12">
+          <label>Accessories (optional, comma-separated)</label>
+          <input id="acc" type="text" placeholder="e.g., ear studs, cat-ear headset, chain, bracelet" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="card">
+      <div class="toolbar">
+        <button id="generate" class="btn generate">⚡ Generate Prompt</button>
+        <button id="copy" class="btn primary">📋 Copy</button>
+        <button id="download" class="btn download">⬇️ Download .txt</button>
+        <button id="share" class="btn ghost">🔗 Share link</button>
+        <span class="pill" id="status"></span>
+      </div>
+      <div style="height:10px"></div>
+      <div id="prompt" class="promptBox"></div>
+      <div style="height:6px"></div>
+      <div class="footnote">Tip: Use the <b>Share link</b> to send a URL that loads all your choices. Changes autosave.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========= LOGIN (simple) =========
+   Change the credentials below. This stores a remember token for 12 hours.
+   Note: for higher security I can switch this to SHA-256 hashed password. */
+const VALID_USER = "admin";  // change if you want username
+const PASS_SHA256 = "cab6fe960050f1a3d6435db61dfc26fea844a72be8955f6c38ef20b87e9e0f48
+";  // ← paste your hash
+const REMEMBER_HOURS = 12;
+const KEY_UNTIL = "gate_ok_until";
+
+function openApp(){
+  document.getElementById("gate").style.display="none";
+  document.getElementById("app").style.display="block";
+}
+(function bootGate(){
+  const until = +localStorage.getItem(KEY_UNTIL) || 0;
+  if(Date.now() < until) openApp();
+})();
+
+async function sha256Hex(str){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+document.getElementById("gateBtn").addEventListener("click", async ()=>{
+  const u = document.getElementById("gUser").value.trim();
+  const p = document.getElementById("gPass").value;
+
+  if(u!==VALID_USER){ 
+    document.getElementById("gateErr").textContent="Invalid username or password."; 
+    return; 
+  }
+
+  const hash = await sha256Hex(p);
+  if(hash===PASS_SHA256){
+    if(document.getElementById("remember").checked){
+      localStorage.setItem(KEY_UNTIL, String(Date.now() + REMEMBER_HOURS*60*60*1000));
+    } else localStorage.removeItem(KEY_UNTIL);
+    openApp();
+  } else {
+    document.getElementById("gateErr").textContent="Invalid username or password.";
+  }
+});
+document.getElementById("logout").addEventListener("click", ()=>{
+  localStorage.removeItem(KEY_UNTIL);
+  location.reload();
+});
+
+});
+
+/* ========= GENERATOR ========= */
+const $=id=>document.getElementById(id);
+const fields=["extra","negative","charType","style","age","skin","hair","outfit","shoes","pose","bg","quality","light","camera","palette","acc"];
+function val(id){return ($(id).value||"").trim();}
+function add(part,arr){if(part&&part.trim())arr.push(part.trim());}
+
+function setVals(obj){for(const k of fields){if(obj[k]!=null)$(k).value=obj[k];} saveState();}
+function saveState(){const data={};for(const k of fields)data[k]=val(k);localStorage.setItem("chibi_state",JSON.stringify(data));}
+function loadState(){try{const s=localStorage.getItem("chibi_state");if(!s)return;setVals(JSON.parse(s));}catch(e){}}
+
+/* Presets */
+const presets={
+  zekeMale:{charType:"Male Chibi",style:"Chibi",age:"young adult",skin:"light",hair:"twists/locs",outfit:"tracksuit",shoes:"Jordan 4",pose:"cross-armed, confident",bg:"studio gradient",quality:"flat cell shading, bold lines",palette:"vibrant neons (magenta, cyan, purple)",acc:"ear studs"},
+  honeyFemale:{charType:"Female Chibi",style:"Chibi",age:"young adult",skin:"medium",hair:"space buns",outfit:"idol stage costume",shoes:"platform sneakers",pose:"peace sign",bg:"neon city",quality:"clean lineart, solid fills",palette:"pastel candy (lavender, mint, peach)",acc:"star earrings, mic headset"},
+  streetSamurai:{charType:"Male Chibi",style:"Chibi",age:"adult",skin:"olive",hair:"undercut",outfit:"cyberpunk jacket + neon pants",shoes:"combat boots",pose:"hands on hips",bg:"street at dusk",quality:"ultra-detailed, print-ready PNG, 300 DPI",light:"neon rim light",camera:"three-quarter view",palette:"cool tech (teal, indigo, charcoal)",acc:"katana, visor"},
+  cyberIdol:{charType:"Female Chibi",style:"Chibi",age:"teen",skin:"fair",hair:"long straight with bangs",outfit:"idol stage costume",shoes:"platform sneakers",pose:"jumping, energetic",bg:"neon city",quality:"painterly rendering, soft brush",light:"dramatic spotlight",palette:"vibrant neons (magenta, cyan, purple)",acc:"LED ribbons"}
+};
+$("presetMale").addEventListener("click",()=>setVals(presets.zekeMale));
+$("presetFemale").addEventListener("click",()=>setVals(presets.honeyFemale));
+$("presetStreet").addEventListener("click",()=>setVals(presets.streetSamurai));
+$("presetIdol").addEventListener("click",()=>setVals(presets.cyberIdol));
+
+/* Generate */
+function buildPrompt(){
+  const p=[];
+  add(`${val("charType").toLowerCase()} character in ${val("style").toLowerCase()} style`,p);
+
+  const appearance=[]; add(val("age"),appearance); add(val("skin")?`${val("skin")} skin`:"",appearance); add(val("hair"),appearance);
+  if(appearance.length) p.push(appearance.join(", ")+".");
+
+  const wear=[]; add(val("outfit"),wear); add(val("shoes"),wear); add(val("acc"),wear);
+  if(wear.length) p.push("Outfit: "+wear.join(", ")+ ".");
+
+  const scene=[]; add(val("pose"),scene); add(val("bg"),scene); add(val("light"),scene); add(val("camera"),scene);
+  add(val("palette")?`color palette: ${val("palette")}`:"",scene);
+  if(scene.length) p.push(scene.join(", ")+ ".");
+
+  if(val("quality")) p.push(val("quality")+".");
+  if(val("extra")) p.push(val("extra")+".");
+  if(val("negative")) p.push(`Negative prompt: ${val("negative")}.`);
+  p.push("Cute proportions, big head small body, expressive eyes, clean silhouette, no text.");
+
+  return p.join(" ");
+}
+
+function buildQuery(){
+  const q=new URLSearchParams();
+  for(const k of fields){const v=val(k); if(v) q.set(k,v);}
+  return location.origin+location.pathname+"?"+q.toString();
+}
+function loadFromQuery(){
+  const q=new URLSearchParams(location.search); if(!q.size) return;
+  const o={}; for(const k of fields){if(q.has(k)) o[k]=q.get(k);} setVals(o);
+}
+
+/* Events */
+for(const k of fields){ $(k).addEventListener("input",saveState); $(k).addEventListener("change",saveState); }
+
+$("generate").addEventListener("click",()=>{
+  const txt=buildPrompt(); $("prompt").textContent=txt; $("status").textContent="Prompt updated";
+  setTimeout(()=>$("status").textContent="",1200);
+});
+$("copy").addEventListener("click",async()=>{
+  const txt=$("prompt").textContent.trim(); if(!txt){$("status").textContent="Generate first";return;}
+  await navigator.clipboard.writeText(txt); $("status").textContent="Copied!"; setTimeout(()=>$("status").textContent="",1000);
+});
+$("download").addEventListener("click",()=>{
+  const txt=$("prompt").textContent.trim(); if(!txt){$("status").textContent="Generate first";return;}
+  const blob=new Blob([txt],{type:"text/plain"}); const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download="chibi_prompt.txt"; a.click(); URL.revokeObjectURL(a.href);
+});
+$("share").addEventListener("click",async()=>{
+  const url=buildQuery(); await navigator.clipboard.writeText(url);
+  $("status").textContent="Share link copied"; setTimeout(()=>$("status").textContent="",1000);
+});
+
+/* Boot */
+loadFromQuery(); loadState();
+</script>
+</body>
+</html>
