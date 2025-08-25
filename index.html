@@ -433,14 +433,8 @@ function generatePrompt(){
   const negative= document.getElementById("negative").value.trim();
 
   // lead-in verbs and descriptors for variety
-  const lead = pick([
-    "A dynamic and stylized illustration",
-    "A highly polished character artwork",
-    "A clean studio character render",
-    "A vibrant poster-style illustration",
-    "A premium, print-ready character image"
-  ]);
-
+  const lead = "Create a dynamic digital illustration"
+ 
   const setting = pick([
     "modern urban setting",
     "clean studio gradient backdrop",
