@@ -256,49 +256,11 @@
 /* ========= LOGIN (simple) =========
    Change the credentials below. This stores a remember token for 12 hours.
    Note: for higher security I can switch this to SHA-256 hashed password. */
-const VALID_USER = "admin";  // change if you want username
-const PASS_SHA256 = "cab6fe960050f1a3d6435db61dfc26fea844a72be8955f6c38ef20b87e9e0f48
-";  // ← paste your hash
-const REMEMBER_HOURS = 12;
-const KEY_UNTIL = "gate_ok_until";
-
-function openApp(){
-  document.getElementById("gate").style.display="none";
-  document.getElementById("app").style.display="block";
-}
-(function bootGate(){
-  const until = +localStorage.getItem(KEY_UNTIL) || 0;
-  if(Date.now() < until) openApp();
+(async () => {
+  const s = "aigenerator2.0";     // ← change this 
+  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  console.log([...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join(""));
 })();
-
-async function sha256Hex(str){
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-
-document.getElementById("gateBtn").addEventListener("click", async ()=>{
-  const u = document.getElementById("gUser").value.trim();
-  const p = document.getElementById("gPass").value;
-
-  if(u!==VALID_USER){ 
-    document.getElementById("gateErr").textContent="Invalid username or password."; 
-    return; 
-  }
-
-  const hash = await sha256Hex(p);
-  if(hash===PASS_SHA256){
-    if(document.getElementById("remember").checked){
-      localStorage.setItem(KEY_UNTIL, String(Date.now() + REMEMBER_HOURS*60*60*1000));
-    } else localStorage.removeItem(KEY_UNTIL);
-    openApp();
-  } else {
-    document.getElementById("gateErr").textContent="Invalid username or password.";
-  }
-});
-document.getElementById("logout").addEventListener("click", ()=>{
-  localStorage.removeItem(KEY_UNTIL);
-  location.reload();
-});
 
 });
 
